@@ -8,7 +8,6 @@ from multiprocessing import Process
 inteface   = ''
 count      = 6
 white_list = [''] 
-#white_list = ['48:5b:39:85:ae:52'] 
 
 def packet_sniffer():
     pkt     = sniff(iface=interface, timeout=1, lfilter= lambda x: x.haslayer(Dot11Beacon) or x.haslayer(Dot11ProbeResp))
