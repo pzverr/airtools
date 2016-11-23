@@ -52,9 +52,9 @@ def packet_handler(pkt):
 def channel_hopper():
     while True:
         try:
-            channel = random.randrange(1,15)
+            channel = random.randrange(1,12)
             os.system("iw dev %s set channel %d" % (interface, channel))
-            time.sleep(1)
+            time.sleep(0.5)
         except KeyboardInterrupt:
             break
 
