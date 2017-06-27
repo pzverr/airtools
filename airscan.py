@@ -26,8 +26,8 @@ def packet_handler(pkt):
 
         if Dot11Layer.addr1 == Dot11Layer.addr3 and Dot11Layer.addr1 != 'ff:ff:ff:ff:ff:ff':
             client = "%s %s" % (Dot11Layer.addr1, Dot11Layer.addr2)
-            if client not in nasoc:
-                nasoc.add(client)
+            if client not in asoc:
+                asoc.add(client)
 
                 print "%s%s %s%s" % (RED, Dot11Layer.addr1, Dot11Layer.addr2, END)
 
