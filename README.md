@@ -12,8 +12,8 @@ how to use airscan
 python airscan.py -i <interface>
 ```
 
-how to use airscan-ext
+how to use airjam-ext
 ------------
 ```sh
-python airscan-ext.py -i <interface> -p <count packets (optional)> -t <target bssid>
+python airjam-ext.py -i <interface> -p <count packets (optional)> -t <target bssid>
 ```
