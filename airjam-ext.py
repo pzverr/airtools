@@ -44,6 +44,10 @@ if __name__ == "__main__":
     packets = args.packets
     target = args.target
 
+    os.system("ifconfig %s down" % interface)
+    os.system("iwconfig %s mode monitor" % interface)
+    os.system("ifconfig %s up" % interface)
+
     p = Process(target = channel_hopper)
     p.start()
 
