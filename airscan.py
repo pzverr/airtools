@@ -4,6 +4,7 @@
 import argparse, time, os, sys, signal
 from scapy.all import *
 from multiprocessing import Process, Manager
+from airjam import Airjam
 
 GRA    = '\033[90m'
 RED    = '\033[91m'
@@ -15,16 +16,15 @@ CYA    = '\033[96m'
 END    = '\033[00m'
 
 class Airscan():
+    
+    _instance = None
 
-    def __init__(self, interface):
+    def __init__(self):
         self.manager = Manager()
         self.aps     = self.manager.list()
         self.asoc    = self.manager.list()
         self.nasoc   = self.manager.list()
-
-        self.interface = interface
-
-        self.flags = self.manager.dict()
+        self.flags   = self.manager.dict()
 
     def packet_handler(self, pkt):
         if pkt.haslayer(Dot11):
@@ -61,7 +61,6 @@ class Airscan():
         return self.flags['stop_sniff']
 
     def channel_hop(self):
-        os.system('clear')
         for channel in range(1,14):
             os.system("iw dev %s set channel %d" % (self.interface, channel))
             time.sleep(0.7)
@@ -70,26 +69,31 @@ class Airscan():
         self.asoc[:]  = []
         self.nasoc[:] = []
 
-    def run(self):
-        while True:
-            try:
-                #raw_input('Press enter to continue...')
-                self.flags['stop_sniff'] = False
-                self.p = Process(target = self.channel_hop)
-                self.p.start()
-                sniff(iface=self.interface, prn=self.packet_handler, stop_filter=self.keep_handler)
-                self.p.terminate()
-                self.p.join()
-            except KeyboardInterrupt:
-                break
+    def signal_handler(self, signal, frame):
+        self.flags['stop_sniff'] = True
+        self.p.terminate()
+        self.p.join()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='airodump scapy')
-    parser.add_argument('-i', '--interface', dest='interface', type=str, required=True, help='interface to use')
-    
-    args = parser.parse_args()
-   
-    interface = args.interface
+    def run(self, iface):
+        self.interface = iface
 
-    airscan = Airscan(interface)
-    airscan.run()
+        self.flags['stop_sniff'] = False
+        self.p = Process(target = self.channel_hop)
+        self.p.start()
+        signal.signal(signal.SIGINT, self.signal_handler)
+        sniff(iface=self.interface, prn=self.packet_handler, stop_filter=self.keep_handler)
+        self.p.terminate()
+        self.p.join()
+
+        target = raw_input("Enter target bssid fully or partially:")
+
+        airjam = Airjam(self.interface, target)
+        airjam.run()
+
+    def getInstance():
+        if Airscan._instance == None:
+            Airscan._instance = Airscan()
+
+        return Airscan._instance
+
+    getInstance = staticmethod(getInstance)

